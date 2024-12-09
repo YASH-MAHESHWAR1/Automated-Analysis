@@ -23,13 +23,13 @@ from PIL import Image
 import os
 import requests
 import json
-from dotenv import load_dotenv
+#from dotenv import load_dotenv
 import sys
 
 # Load environment variables for API key
-load_dotenv(dotenv_path='token.env')
+#load_dotenv(dotenv_path='token.env')
 
-AIPROXY_TOKEN = os.getenv("API_TOKEN")
+#AIPROXY_TOKEN = os.getenv("API_TOKEN")
 url = "https://aiproxy.sanand.workers.dev/openai/v1/chat/completions"
 
 headers = {
