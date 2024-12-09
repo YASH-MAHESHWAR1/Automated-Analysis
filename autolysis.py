@@ -1,3 +1,20 @@
+# /// script
+# dependencies = [
+#   "matplotlib>=3.9.3",
+#   "numpy>=2.1.3",
+#   "openai>=1.56.2",
+#   "pandas>=2.2.3",
+#   "requests>=2.32.3",
+#   "scikit-learn>=1.5.2",
+#   "seaborn>=0.13.2",
+#   "statsmodels>=0.14.4",
+# ]
+# requires-python = ">=3.10"
+# [tool]
+# description = "Automated dataset analysis and reporting script leveraging LLMs."
+# version = "0.1.0"
+# ///
+
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -8,8 +25,6 @@ import requests
 import json
 from dotenv import load_dotenv
 import sys
-
-
 
 # Load environment variables for API key
 load_dotenv(dotenv_path='token.env')
@@ -396,7 +411,6 @@ def main(filename):
             file.write(report)
 
     print("Report saved as README.md")
-
 
 
 if __name__ == "__main__":
