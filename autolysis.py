@@ -30,7 +30,7 @@ import requests
 import json
 import sys
 # Load environment variables for API key
-AIPROXY_TOKEN = os.getenv("API_TOKEN")
+AIPROXY_TOKEN = os.getenv("AIPROXY_TOKEN")
 url = "https://aiproxy.sanand.workers.dev/openai/v1/chat/completions"
 
 headers = {
