@@ -69,7 +69,7 @@ def generic_analysis(data):
     # Correlation matrix
     if numeric_data.shape[1] > 1:
         corr_matrix = numeric_data.corr()
-        plt.figure(figsize=(10, 8))
+        plt.figure(figsize=(5.12, 5.12), dpi=100)
         sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', fmt=".2f")
         plt.title('Correlation Matrix', fontsize=16)
         plt.xlabel('Features', fontsize=14)
@@ -93,7 +93,7 @@ def generic_analysis(data):
         results['Outliers (Z-Score)'] = outliers.to_string()
 
         # Outliers histogram
-        plt.figure(figsize=(8, 6))
+        plt.figure(figsize=(5.12, 5.12), dpi=100)
         z_scores.abs().stack().hist(bins=30)
         plt.title('Outliers Distribution (Z-Scores)', fontsize=16)
         plt.xlabel('Z-Score', fontsize=14)
@@ -116,7 +116,7 @@ def generic_analysis(data):
 
         # Scatter plot for clusters
         if numeric_data_imputed.shape[1] >= 2:
-            plt.figure(figsize=(8, 6))
+            plt.figure(figsize=(5.12, 5.12), dpi=100)
             plt.scatter(numeric_data_imputed.iloc[:, 0], numeric_data_imputed.iloc[:, 1], 
                         c=data['Cluster'], cmap='viridis', s=50, alpha=0.7)
             plt.title('Cluster Visualization', fontsize=16)
