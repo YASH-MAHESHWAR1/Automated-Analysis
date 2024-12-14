@@ -4,6 +4,7 @@
 #   "numpy>=2.1.3",
 #   "openai>=1.56.2",
 #   "pandas>=2.2.3",
+#   "pillow>=11.0.0",
 #   "requests>=2.32.3",
 #   "scikit-learn>=1.5.2",
 #   "scipy>=1.14.1",
@@ -17,12 +18,13 @@
 # ///
 
 
-
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.cluster import KMeans
+from sklearn.impute import SimpleImputer
 from scipy.cluster.hierarchy import dendrogram, linkage
+from scipy.stats import zscore, ttest_ind
 import io
 from PIL import Image
 import os
@@ -44,7 +46,7 @@ def load_dataset(filename):
     Load a dataset and return its data along with a preview.
     """
     try:
-        data = pd.read_csv(filename, encoding="ISO-8859-1")
+        data = pd.read_csv(filename, low_memory=False,encoding="ISO-8859-1")
         preview = data.head(3).to_string(index=False)
         return data, preview
     except Exception as e:
@@ -53,83 +55,79 @@ def load_dataset(filename):
 
 def generic_analysis(data):
     """
-    Perform generic analyses that apply to most datasets.
+    Perform generic analyses on the dataset and return results.
     """
     results = {}
-    print("Performing generic analyses...")
+    numeric_data = data.select_dtypes(include=['number'])
 
     # Summary statistics
-    try:
-        summary_stats = data.describe(include='all').to_string()
-        results['Summary Statistics'] = summary_stats
-        print("Summary Statistics:\n", summary_stats)
-    except Exception as e:
-        print(f"Error generating summary statistics: {e}")
+    results['Summary Statistics'] = data.describe(include='all').to_string()
 
-    # Missing values count
-    try:
-        missing_values = data.isnull().sum().to_string()
-        results['Missing Values'] = missing_values
-        print("Missing Values:\n", missing_values)
-    except Exception as e:
-        print(f"Error counting missing values: {e}")
+    # Missing values
+    results['Missing Values'] = data.isnull().sum().to_string()
 
     # Correlation matrix
-    try:
-        numeric_data = data.select_dtypes(include=['number'])
-        if numeric_data.shape[1] > 1:
-            corr_matrix = numeric_data.corr()
-            sns.heatmap(corr_matrix, annot=True, cmap='coolwarm')
-            plt.title('Correlation Matrix')
-            plt.show()  # Display the plot
-            print(corr_matrix.to_string())
-            results['Correlation Matrix'] = corr_matrix.to_string()
-            print("Correlation Matrix displayed.")
-        else:
-            print("Insufficient numerical columns for correlation matrix.")
-    except Exception as e:
-        print(f"Error generating correlation matrix: {e}")
+    if numeric_data.shape[1] > 1:
+        corr_matrix = numeric_data.corr()
+        plt.figure(figsize=(10, 8))
+        sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', fmt=".2f")
+        plt.title('Correlation Matrix', fontsize=16)
+        plt.xlabel('Features', fontsize=14)
+        plt.ylabel('Features', fontsize=14)
+        plt.xticks(rotation=45, fontsize=10)
+        plt.yticks(fontsize=10)
+        plt.tight_layout()
+        plt.close()
+        results['Correlation Matrix'] = corr_matrix.to_string()
 
-    # Outlier detection (z-scores)
-    try:
-        numeric_data = data.select_dtypes(include=['number'])
-        z_scores = (numeric_data - numeric_data.mean()) / numeric_data.std()
-        outliers = (z_scores.abs() > 3).sum().to_string()
-        results['Outliers (Z-Score)'] = outliers
-        print("Outliers detected using Z-Scores:\n", outliers)
-    except Exception as e:
-        print(f"Error detecting outliers: {e}")
+    # T-Test
+    if len(numeric_data.columns) >= 2:
+        col1, col2 = numeric_data.columns[:2]
+        stat, p_val = ttest_ind(numeric_data[col1], numeric_data[col2], nan_policy='omit')
+        results['T-Test'] = f"Stat: {stat}, P-val: {p_val}"
+
+    # Outliers detection
+    if not numeric_data.empty:
+        z_scores = numeric_data.apply(zscore)
+        outliers = (z_scores.abs() > 3).sum()
+        results['Outliers (Z-Score)'] = outliers.to_string()
+
+        # Outliers histogram
+        plt.figure(figsize=(8, 6))
+        z_scores.abs().stack().hist(bins=30)
+        plt.title('Outliers Distribution (Z-Scores)', fontsize=16)
+        plt.xlabel('Z-Score', fontsize=14)
+        plt.ylabel('Frequency', fontsize=14)
+        plt.grid(True)
+        plt.tight_layout()
+        plt.close()
 
     # Clustering
-    try:
-        numeric_data = data.select_dtypes(include=['number']).dropna()
-        if numeric_data.shape[0] > 5 and numeric_data.shape[1] > 1:
-            kmeans = KMeans(n_clusters=3, random_state=42)
-            clusters = kmeans.fit_predict(numeric_data)  # Perform clustering
-            data.loc[numeric_data.index, 'Cluster'] = clusters  # Assign labels to the original rows in 'data'
-            results['Clustering'] = data['Cluster'].value_counts().to_string()
-            print("Clustering results:\n", results['Clustering'])
-        else:
-            print("Insufficient data for clustering.")
-    except Exception as e:
-        print(f"Error performing clustering: {e}")
+    if numeric_data.shape[0] > 5 and numeric_data.shape[1] > 1:
+        # Handle missing values
+        imputer = SimpleImputer(strategy='mean')
+        numeric_data_imputed = pd.DataFrame(imputer.fit_transform(numeric_data), 
+                                            columns=numeric_data.columns)
 
-    # Hierarchical clustering
-    try:
-        numeric_data = data.select_dtypes(include=['number']).dropna()
-        if numeric_data.shape[0] > 5:
-            linked = linkage(numeric_data, method='ward')
-            plt.figure(figsize=(10, 7))
-            dendrogram(linked, orientation='top', distance_sort='descending', show_leaf_counts=True)
-            plt.title('Hierarchical Clustering Dendrogram')
-            print("Hierarchical clustering dendrogram displayed.")
-        else:
-            print("Insufficient data for hierarchical clustering.")
-    except Exception as e:
-        print(f"Error performing hierarchical clustering: {e}")
+        # Apply KMeans
+        kmeans = KMeans(n_clusters=3, random_state=42, n_init='auto')
+        data['Cluster'] = kmeans.fit_predict(numeric_data_imputed)
+        results['Clustering'] = data['Cluster'].value_counts().to_string()
+
+        # Scatter plot for clusters
+        if numeric_data_imputed.shape[1] >= 2:
+            plt.figure(figsize=(8, 6))
+            plt.scatter(numeric_data_imputed.iloc[:, 0], numeric_data_imputed.iloc[:, 1], 
+                        c=data['Cluster'], cmap='viridis', s=50, alpha=0.7)
+            plt.title('Cluster Visualization', fontsize=16)
+            plt.xlabel(numeric_data_imputed.columns[0], fontsize=14)
+            plt.ylabel(numeric_data_imputed.columns[1], fontsize=14)
+            plt.colorbar(label='Cluster', pad=0.02)
+            plt.grid(True)
+            plt.tight_layout()
+            plt.close()
 
     return results
-        
 
 def request_analysis_suggestions(data, generic_results):
     """
@@ -152,14 +150,7 @@ def request_analysis_suggestions(data, generic_results):
     The following generic analyses have already been performed on this dataset:
     {generic_analysis_summary}
 
-    Based on the dataset structure and the findings from the generic analyses, provide a list of further analyses that should be conducted to extract deeper insights or answer potential questions about the data. 
-   
-    Your suggestions should:
-    - Be tailored to the specific dataset and its characteristics.
-    - Take into account the results from the generic analyses to avoid redundancy.
-    - Focus on identifying patterns, relationships, or other significant features in the dataset.
-    - Include advanced statistical or machine learning methods if relevant.
-    
+    After thoroughly understanding the results of the generic analysis and carefully studying the dataset structure, provide a well-considered list of top 4 additional analyses that can be conducted to extract deeper insights and address specific questions about the data, rather than simply repeating or performing analyses without a clear purpose 
     Please provide a concise and well-thought-out list of analyses that will help uncover meaningful insights about the dataset.
     """
 
@@ -216,7 +207,7 @@ def request_code_for_analysis(analysis, data_preview):
     The code should:
     1. Use pandas, matplotlib, or seaborn as needed.
     2. Save maximum one generated chart as PNG files.
-    3. diplay computed results or summaries which doesnot contains chart.
+    3. diplay computed results or summaries which doesnot contains chart.Acoid shoing the charts
     **Important**: 
     - Return **only the Python code** to perform the analysis. 
     - Do not include any introductory statements or the word `Python` at the beginning of the response.
@@ -306,6 +297,7 @@ def execute_generated_code_with_retry(code, globals_dict):
 
             print(f"Retrying with corrected code (Attempt {attempt + 1})...")
             code = corrected_code
+            print(code)
 def llm_correction_function(code, error_message):
     """
     Request the LLM to correct the code based on the error message using function calling.
