@@ -208,7 +208,7 @@ def request_code_for_analysis(analysis, data_preview):
     The code should:
     1. Use pandas, matplotlib, or seaborn as needed.
     2. Save maximum one generated chart as PNG files.
-    3. diplay computed results or summaries which doesnot contains chart.Acoid shoing the charts
+    3. diplay computed results or summaries which doesnot contains chart.Avoid displaying the charts
     **Important**: 
     - Return **only the Python code** to perform the analysis. 
     - Do not include any introductory statements or the word `Python` at the beginning of the response.
