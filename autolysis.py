@@ -32,6 +32,7 @@ import os
 import requests
 import json
 import sys
+import traceback
 # Load environment variables for API key
 
 AIPROXY_TOKEN = os.getenv("AIPROXY_TOKEN")
@@ -257,12 +258,6 @@ def execute_generated_code_with_retry(code, globals_dict):
     - globals_dict: The global dictionary context for code execution.
     - llm_correction_function: A function that takes the failed code and error message,
       and returns a corrected version of the code.
-
-    Returns:
-    - A tuple (success, output, final_code):
-      - success: True if code executed successfully, False otherwise.
-      - output: The captured output of the code execution (stdout or error messages).
-      - final_code: The final corrected version of the code that was executed.
     """
     attempt = 0
     captured_output = io.StringIO()
@@ -284,7 +279,7 @@ def execute_generated_code_with_retry(code, globals_dict):
         except Exception as e:
             # Capture the error message
             sys.stdout = sys.__stdout__  # Reset stdout to the default (console)
-            error_message = str(e)
+            error_message = traceback.format_exc()
             output = captured_output.getvalue() + f"\nError: {error_message}"
             print(f"Error on attempt {attempt}: {error_message}")
 
