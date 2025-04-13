@@ -16,7 +16,7 @@
 # description = "Automated dataset analysis and reporting script leveraging LLMs."
 # version = "0.1.0"
 # ///
-
+import argparse
 import matplotlib
 matplotlib.use('Agg') 
 import pandas as pd
@@ -33,15 +33,31 @@ import requests
 import json
 import sys
 import traceback
+from dotenv import load_dotenv
+
 # Load environment variables for API key
 
-AIPROXY_TOKEN = os.getenv("AIPROXY_TOKEN")
+AIPROXY_TOKEN = None
 url = "https://aiproxy.sanand.workers.dev/openai/v1/chat/completions"
 
 headers = {
     "Authorization": f"Bearer {AIPROXY_TOKEN}",
     "Content-Type": "application/json"
 }
+def load_token(cli_token=None, save_to_env=False):
+    if cli_token:
+        if save_to_env:
+            with open(".env", "w") as f:
+                f.write(f"AIPROXY_TOKEN={cli_token}\n")
+            print("Token saved to .env file.")
+        return cli_token
+
+    load_dotenv()
+    token = os.getenv("AIPROXY_TOKEN")
+    if not token:
+        print("Error: API token not found. Use --token or set AIPROXY_TOKEN in .env.")
+        sys.exit(1)
+    return token
 
 def load_dataset(filename):
     """
@@ -406,8 +422,9 @@ def request_report_based_on_analysis(data, analysis_results,filename):
     else:
         print(f"Error with LLM request: {response.status_code}")
         return None  
-def main(filename):
-    # Step 1: Load dataset
+def main(filename, image_limit, output_file, token, save_token_flag):
+    global AIPROXY_TOKEN
+    AIPROXY_TOKEN = load_token(token, save_to_env=save_token_flag)
     data, preview = load_dataset(filename)
     if data is None:
         return
@@ -415,9 +432,8 @@ def main(filename):
     print("Dataset preview:\n")
     print(preview)
     generic_results = generic_analysis(data)
-    # Step 2: Get analysis suggestions
     print("\nRequesting analysis suggestions from LLM...")
-    analysis_list = request_analysis_suggestions(data,generic_results)
+    analysis_list = request_analysis_suggestions(data, generic_results)
     if not analysis_list:
         print("No analysis suggestions were provided.")
         return
@@ -426,44 +442,28 @@ def main(filename):
     for idx, analysis in enumerate(analysis_list, start=1):
         print(f"{idx}. {analysis}")
 
-    # Step 3: Prepare for PNG file-saving limit
-    original_savefig = plt.savefig  # Save the original function
-    image_save_count = 0  # Counter for saved images
-    max_images = 5  # Limit the number of PNG files
+    original_savefig = plt.savefig
+    image_save_count = 0
 
     def limited_savefig(*args, **kwargs):
-        """
-        Limit the number of saved images to `max_images`, resize to 512x512 if necessary,
-        and save the image using `plt.savefig`.
-        """
-        nonlocal image_save_count  # Use global to modify the counter
-        if image_save_count < max_images:
+        nonlocal image_save_count
+        if image_save_count < image_limit:
             image_save_count += 1
-        
-            # Call the original savefig to save the image
             original_savefig(*args, **kwargs)
-            
-            # After saving the image, resize it if needed
             image_path = args[0]
             if image_path.endswith(('.png', '.jpg', '.jpeg')):
-                # Open the image using Pillow to resize it
                 with Image.open(image_path) as img:
-                    img.thumbnail((512, 512), Image.Resampling.LANCZOS)  # Resize to max 512x512, maintaining aspect ratio
+                    img.thumbnail((512, 512), Image.Resampling.LANCZOS)
                     img.save(image_path, format="PNG", optimize=True)
                     print(f"Image resized and saved: {image_path}")
             else:
-                # If it's not an image file, skip resizing
                 print(f"Skipping resize for non-image file: {image_path}")
-            
-            print(f"Saved image {image_save_count}/{max_images}: {image_path}")
+            print(f"Saved image {image_save_count}/{image_limit}: {image_path}")
         else:
             print("Image saving limit reached. Skipping save.")
 
-
-    # Temporarily replace plt.savefig
     plt.savefig = limited_savefig
 
-    # Step 4: Request and execute code for each analysis
     final_result = {}
     for analysis in analysis_list:
         print(f"\nRequesting code for analysis: {analysis}")
@@ -473,11 +473,9 @@ def main(filename):
             print(code)
             print("\nExecuting code...")
             globals_dict = {"data": data, "pd": pd, "plt": plt, "sns": sns}
-
             success = execute_generated_code_with_retry(code, globals_dict)
             if success:
                 final_result[analysis] = success
-                # diffrentiating the real ouput of the analysis
                 print("---------------------------------")
                 print(success)
                 print("----------------------------------")
@@ -486,26 +484,27 @@ def main(filename):
         else:
             print(f"Failed to get code for analysis: {analysis}")
 
-    # Restore the original plt.savefig
     plt.savefig = original_savefig
 
-    # Step 5: Request a detailed report
     report = request_report_based_on_analysis(data, final_result, filename)
     if report:
         print("\nDetailed Report:\n")
         print(report)
-        with open("README.md", "w") as file:
+        with open(output_file, "w") as file:
             file.write(report)
 
-    print("Report saved as README.md")
-
+        print(f"Report saved as {output_file}")
 
 
 if __name__ == "__main__":
-    # Get the dataset filename as a command-line argument
-    if len(sys.argv) != 2:
-        print("Usage: python autolysis.py <dataset.csv>")
-        sys.exit(1)
-    
-    filename = sys.argv[1]  # Get the dataset filename from the command-line argument
-    main(filename)
+    parser = argparse.ArgumentParser(description="Automated dataset analysis and report generation.")
+    parser.add_argument("--file", required=True, help="Path to the input dataset CSV file.")
+    parser.add_argument("--limit-images", type=int, default=5, help="Maximum number of images to save (default: 5).")
+    parser.add_argument("--output", default="README.md", help="Output report file (default: README.md).")
+    parser.add_argument("--token", help="AIPROXY API token (overrides .env).")
+    parser.add_argument("--save-token", action="store_true", help="Save the token to .env for future use.")
+
+    args = parser.parse_args()
+    main(args.file, args.limit_images, args.output, args.token, args.save_token)
+
+
