@@ -69,5 +69,4 @@ Visualizations
 
 LLM-generated commentary
 
-Code snippets (if needed)
 
