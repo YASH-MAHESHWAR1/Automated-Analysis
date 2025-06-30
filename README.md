@@ -51,7 +51,7 @@ This project uses OpenAI's API for LLM-based tasks. You need an OpenAI API token
 
 ### 📈 Run the Report Generator
 ```bash
-python generate_report.py \
+python autolysis.py \
   --file <path_to_your_csv_file> \
   --limit-images <number_of_images_to_save> \
   --output <output_report_filename.md> \
