@@ -40,19 +40,16 @@ from dotenv import load_dotenv
 AIPROXY_TOKEN = None
 url = "https://aiproxy.sanand.workers.dev/openai/v1/chat/completions"
 
-headers = {
-    "Authorization": f"Bearer {AIPROXY_TOKEN}",
-    "Content-Type": "application/json"
-}
+headers = None
 def load_token(cli_token=None, save_to_env=False):
     if cli_token:
         if save_to_env:
-            with open(".env", "w") as f:
+            with open("token.env", "w") as f:
                 f.write(f"AIPROXY_TOKEN={cli_token}\n")
             print("Token saved to .env file.")
         return cli_token
 
-    load_dotenv()
+    load_dotenv(dotenv_path='token.env')
     token = os.getenv("AIPROXY_TOKEN")
     if not token:
         print("Error: API token not found. Use --token or set AIPROXY_TOKEN in .env.")
@@ -425,6 +422,11 @@ def request_report_based_on_analysis(data, analysis_results,filename):
 def main(filename, image_limit, output_file, token, save_token_flag):
     global AIPROXY_TOKEN
     AIPROXY_TOKEN = load_token(token, save_to_env=save_token_flag)
+    global headers
+    headers = {
+        "Authorization": f"Bearer {AIPROXY_TOKEN}",
+        "Content-Type": "application/json"
+    }
     data, preview = load_dataset(filename)
     if data is None:
         return
