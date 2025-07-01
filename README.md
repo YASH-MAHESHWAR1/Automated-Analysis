@@ -1,11 +1,16 @@
-# 📊 Automated Dataset Analysis & Reporting using LLMs
+# 📊 Automated Dataset Analysis & Reporting (CLI Tool, LLM-Powered)
 
-This project provides a fully automated pipeline to analyze any tabular dataset and generate a detailed, professional-grade report using a powerful Large Language Model (LLM). It leverages the OpenAI API to guide every step of the analysis — from understanding the dataset, determining insightful analysis steps, generating and refining code, to finally producing a Markdown report with visualizations.
+This project offers a powerful command-line tool that automates the entire process of exploratory data analysis (EDA) for any tabular dataset. With a single command, it intelligently examines your data, generates Python code for analysis, executes it, and compiles the results into a polished Markdown report — complete with visualizations and expert-style commentary.
+
+At the core of this tool is a Large Language Model (LLM), which drives every step of the pipeline: understanding dataset structure, selecting meaningful analyses, generating and refining code, and summarizing insights. It uses the OpenAI API to power its decisions, making your reports not only automated but also contextually smart.
+
+Whether you're a data scientist, analyst, or engineer, this CLI-first solution is built to save you hours of manual work and deliver consistent, quality data reports — ready to present, or dive deeper.
 
 ---
 
 ## 🚀 Features
 
+- **One-command analysis** – just run the script with your dataset and get a complete report.
 - **Zero manual analysis** – just provide your dataset and get a full report.
 - **LLM-driven pipeline** – intelligently understands your dataset and designs analysis steps.
 - **Code generation loop** – automatically refines Python code until it runs correctly.
